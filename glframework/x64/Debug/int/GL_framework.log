@@ -1,8 +1,3 @@
-﻿  render_prims.cpp
-  render.cpp
-  physics.cpp
-  Generating Code...
-  GL_framework.vcxproj -> D:\GuillemSerra\Fluids\glframework\x64\Debug\GL_framework.exe
-  GL_framework.vcxproj -> D:\GuillemSerra\Fluids\glframework\x64\Debug\GL_framework.pdb (Partial PDB)
-  0 File(s) copied
-  0 File(s) copied
+﻿  physics.cpp
+d:\guillemserra\fluids\glframework\code\src\physics.cpp(142): error C2065: 'velCloth': undeclared identifier
+d:\guillemserra\fluids\glframework\code\src\physics.cpp(144): error C2065: 'sumFCloth': undeclared identifier

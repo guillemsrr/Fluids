@@ -6,7 +6,7 @@
 extern bool renderSphere;
 bool renderCapsule = false;
 bool renderParticles = false;
-bool renderCloth = false;
+extern bool renderCloth;
 bool renderCube = false;
 
 namespace Sphere {

@@ -9,29 +9,41 @@
 
 #pragma region Variables
 //matrices:
-glm::mat4 cubeTransform;
-glm::mat4 cubePosition;
-glm::mat4 cubeRotation;
 
-//kinematics:
-struct stateVector
-{
-	glm::vec3 position;
-};
+//Sphere
+glm::vec3 spherePosition;
+float sphereRadius;
+const float mass = 1.0f;
 
-stateVector sphereState;
+//Cloth:
+glm::vec3 posCloth[18][14];
+
+//Wave:
+//struct wave
+float amplitude;
+float frequency;
+glm::vec3 waveVector;
+glm::vec3 waveDirection;
+float lambda;
+
 
 //Time:
 float resetTime;
 float deltaTime;
 
-bool renderSphere = true;
+bool renderSphere = false;
+bool renderCloth = true;
 #pragma endregion
 
 namespace Sphere
 {
 	void cleanupSphere();
 	void updateSphere(glm::vec3 pos, float radius = 1.f);
+}
+namespace ClothMesh
+{
+	void cleanupClothMesh();
+	void updateClothMesh(float* array_data);
 }
 
 #pragma region Functions
@@ -42,7 +54,6 @@ float randomFloat(float min, float max)
 	return ((max - min) * ((float)rand() / RAND_MAX)) + min;
 }
 //physics:
-void setSphereTransform();
 
 #pragma endregion
 
@@ -100,10 +111,8 @@ void GUI()
 }
 
 
-int loop;
 void PhysicsInit()
 {
-	loop = 0;
 	system("cls");
 
 	//Time:
@@ -112,9 +121,35 @@ void PhysicsInit()
 	//Seed
 	srand(static_cast<unsigned int>(_getpid()) ^ static_cast<unsigned int>(clock()) ^ static_cast<unsigned int>(time(NULL)));
 
-	//Random position:
-	sphereState.position = glm::vec3(randomFloat(-5.0f, 5.0f), randomFloat(0.f, 10.0f), randomFloat(-5.0f, 5.0f));
-	Sphere::updateSphere(sphereState.position, 1.f );
+	//Initialize Sphere at random position
+	if (renderSphere)
+	{
+		spherePosition = { -5.0f + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (10.0f))), static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (5.0f))), -5 + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (10.0f))) };
+		sphereRadius = 1.f + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (2.0f)));
+		Sphere::updateSphere(spherePosition, sphereRadius);
+	}
+
+	//Initialize Cloth:
+	//wave variables:
+	amplitude = randomFloat(0.2f, 2.0f);
+	frequency = randomFloat(0.2f,1.0f);
+	waveVector = glm::vec3{randomFloat(0.0f,1.0f), 0.0f, randomFloat(0.0f,1.0f)};
+
+	//initial Position:
+	glm::vec3 auxPos;
+	auxPos.z = -5.0f - 10.0f / 18.0f;
+	for (int i = 0; i<18; i++)
+	{
+		auxPos.z += 10.0f/18.0f;
+		auxPos.x = -5.f - 10.0f / 14.0f;
+		for (int j = 0; j<14; j++)
+		{
+			//Position:
+			auxPos.x += 10.0f/14.0f;
+			posCloth[i][j] = { auxPos.x , 1.0f , auxPos.z };
+		}
+	}
+
 }
 
 void PhysicsUpdate(float dt)
@@ -130,23 +165,27 @@ void PhysicsUpdate(float dt)
 			resetTime += dt;
 			deltaTime = dt;
 			
-			//collisions:
+			//GERSTNER WAVES:
+
+			ClothMesh::updateClothMesh((float*)posCloth);
+
+			//Sphere Buoyancy:
 			if (useCollisions)
 			{
-				
+				Sphere::updateSphere(spherePosition, 1.f);
 			}
-			else
-			{
-				
-			}
-
+			
 		}
-		Sphere::updateSphere(sphereState.position, 1.f);
 	}
 }
 
 void PhysicsCleanup()
 {
+	ClothMesh::cleanupClothMesh();
 	Sphere::cleanupSphere();
 }
 
+void gerstnerWave(glm::vec3 pos)
+{
+	pos.x -= amplitude*sin(waveVector)
+}
