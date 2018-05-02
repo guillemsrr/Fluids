@@ -2,6 +2,7 @@
 #include <imgui\imgui_impl_sdl_gl3.h>
 #include <glm\glm.hpp>
 #include <glm\gtc\matrix_transform.hpp>
+#include <glm\gtc\constants.hpp>
 #include <glm\gtx\quaternion.hpp>
 #include <iostream>
 #include <time.h>
@@ -22,8 +23,8 @@ glm::vec3 posCloth[18][14];
 //struct wave
 float amplitude;
 float frequency;
-glm::vec3 waveVector;
-glm::vec3 waveDirection;
+glm::vec2 waveVector;
+glm::vec2 waveDirection;
 float lambda;
 
 
@@ -53,6 +54,7 @@ float randomFloat(float min, float max)
 {
 	return ((max - min) * ((float)rand() / RAND_MAX)) + min;
 }
+void gerstnerWave(glm::vec3 &pos);
 //physics:
 
 #pragma endregion
@@ -131,9 +133,14 @@ void PhysicsInit()
 
 	//Initialize Cloth:
 	//wave variables:
-	amplitude = randomFloat(0.2f, 2.0f);
-	frequency = randomFloat(0.2f,1.0f);
-	waveVector = glm::vec3{randomFloat(0.0f,1.0f), 0.0f, randomFloat(0.0f,1.0f)};
+	//amplitude = randomFloat(0.1f, 1.0f);
+	amplitude = 1.0f;
+	//frequency = randomFloat(0.1f,1.0f);
+	frequency = 1.0f;
+	waveDirection = glm::vec2{ 1.0f,0.f };//randomFloat(0.0f,1.0f), randomFloat(0.0f,1.0f)};
+	//lambda = randomFloat(0.1f, 1.0f);
+	lambda = 0.1f;
+	waveVector = waveDirection * (lambda / (2 * glm::pi<float>()));
 
 	//initial Position:
 	glm::vec3 auxPos;
@@ -166,7 +173,13 @@ void PhysicsUpdate(float dt)
 			deltaTime = dt;
 			
 			//GERSTNER WAVES:
-
+			for (int i = 0; i < 18; i++)
+			{
+				for (int j = 0; j < 14; j++)
+				{
+					gerstnerWave(posCloth[i][j]);
+				}
+			}
 			ClothMesh::updateClothMesh((float*)posCloth);
 
 			//Sphere Buoyancy:
@@ -174,7 +187,6 @@ void PhysicsUpdate(float dt)
 			{
 				Sphere::updateSphere(spherePosition, 1.f);
 			}
-			
 		}
 	}
 }
@@ -185,7 +197,17 @@ void PhysicsCleanup()
 	Sphere::cleanupSphere();
 }
 
-void gerstnerWave(glm::vec3 pos)
+void gerstnerWave(glm::vec3 &pos)
 {
-	pos.x -= amplitude*sin(waveVector)
+	glm::vec2 planePos = { pos.x,pos.z };
+	float height = pos.y;
+	planePos = planePos + waveVector*amplitude* sin(glm::dot(waveVector,planePos) - frequency * resetTime);
+	height = amplitude * cos(glm::dot(waveVector,planePos) - frequency * resetTime);
+
+	pos.x = planePos.x;
+	pos.y = height;
+	pos.z = planePos.y;
+
+	/*pos.x = pos.x + amplitude * sin(glm::dot(waveVector,pos.x) - frequency * resetTime);
+	pos.y = amplitude * cos(glm::dot(waveDirection,pos.y) - frequency* resetTime);*/
 }
