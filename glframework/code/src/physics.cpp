@@ -136,10 +136,10 @@ void PhysicsInit()
 	//amplitude = randomFloat(0.1f, 1.0f);
 	amplitude = 1.0f;
 	//frequency = randomFloat(0.1f,1.0f);
-	frequency = 1.0f;
+	frequency = 0.5f;
 	waveDirection = glm::vec2{ 1.0f,0.f };//randomFloat(0.0f,1.0f), randomFloat(0.0f,1.0f)};
 	//lambda = randomFloat(0.1f, 1.0f);
-	lambda = 0.1f;
+	lambda = 0.5f;
 	waveVector = waveDirection * (lambda / (2 * glm::pi<float>()));
 
 	//initial Position:
@@ -201,8 +201,8 @@ void gerstnerWave(glm::vec3 &pos)
 {
 	glm::vec2 planePos = { pos.x,pos.z };
 	float height = pos.y;
-	planePos = planePos + waveVector*amplitude* sin(glm::dot(waveVector,planePos) - frequency * resetTime);
-	height = amplitude * cos(glm::dot(waveVector,planePos) - frequency * resetTime);
+	planePos = planePos - waveVector*amplitude* sin(glm::dot(waveDirection,planePos) - frequency * resetTime);
+	height = amplitude * cos(glm::dot(waveDirection,planePos) - frequency * resetTime);
 
 	pos.x = planePos.x;
 	pos.y = height;
