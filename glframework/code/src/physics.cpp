@@ -19,14 +19,17 @@ const float mass = 1.0f;
 //Cloth:
 glm::vec3 posCloth[18][14];
 
-//Wave:
-//struct wave
-float amplitude;
-float frequency;
-glm::vec2 waveVector;
-glm::vec2 waveDirection;
-float lambda;
-
+//Waves:
+int numWaves;
+wave *allWaves;
+struct wave
+{
+	float amplitude;
+	float frequency;
+	glm::vec3 waveDirection;//k
+	float lambda;
+	float phi;
+};
 
 //Time:
 float resetTime;
@@ -54,7 +57,7 @@ float randomFloat(float min, float max)
 {
 	return ((max - min) * ((float)rand() / RAND_MAX)) + min;
 }
-void gerstnerWave(glm::vec3 &pos);
+void gerstnerWave(glm::vec3 &pos, wave w);
 //physics:
 
 #pragma endregion
@@ -132,31 +135,41 @@ void PhysicsInit()
 	}
 
 	//Initialize Cloth:
-	//wave variables:
-	//amplitude = randomFloat(0.1f, 1.0f);
-	amplitude = 1.0f;
-	//frequency = randomFloat(0.1f,1.0f);
-	frequency = 0.5f;
-	waveDirection = glm::vec2{ 1.0f,0.f };//randomFloat(0.0f,1.0f), randomFloat(0.0f,1.0f)};
-	//lambda = randomFloat(0.1f, 1.0f);
-	lambda = 0.5f;
-	waveVector = waveDirection * (lambda / (2 * glm::pi<float>()));
+	numWaves = rand() % 3;
+	allWaves = new wave[numWaves];
+	for (int i = 0; i <= numWaves; i++) //allWaves.size()
+	{
+		allWaves[i].amplitude = randomFloat(0.1f, 1.0f);
+		allWaves[i].amplitude = 0.4f;
+		std::cout << allWaves[i].amplitude << std::endl;
 
-	//initial Position:
+		allWaves[i].frequency = randomFloat(0.1f, 1.0f);
+		allWaves[i].frequency = 0.8f;
+		std::cout << allWaves[i].frequency << std::endl;
+
+		allWaves[i].waveDirection = glm::vec3{ 1,0,0 };//randomFloat(0.0f,1.0f), 0.f, randomFloat(0.0f,1.0f)};
+		allWaves[i].lambda = randomFloat(0.1f, 1.0f);
+		allWaves[i].lambda = 0.2f;
+		std::cout << allWaves[i].lambda << std::endl;
+
+		allWaves[i].phi = randomFloat(0.1f, 1.0f);
+		allWaves[i].phi = 0.2f;
+	}
+
+	//initial Cloth Position:
 	glm::vec3 auxPos;
-	auxPos.z = -5.0f - 10.0f / 18.0f;
+	auxPos.z = -5.0f;// -10.0f / 18.0f;
 	for (int i = 0; i<18; i++)
 	{
 		auxPos.z += 10.0f/18.0f;
-		auxPos.x = -5.f - 10.0f / 14.0f;
+		auxPos.x = -5.f;// -10.0f / 14.0f;
 		for (int j = 0; j<14; j++)
 		{
 			//Position:
 			auxPos.x += 10.0f/14.0f;
-			posCloth[i][j] = { auxPos.x , 1.0f , auxPos.z };
+			posCloth[i][j] = { auxPos.x , 2.0f , auxPos.z };
 		}
 	}
-
 }
 
 void PhysicsUpdate(float dt)
@@ -177,7 +190,10 @@ void PhysicsUpdate(float dt)
 			{
 				for (int j = 0; j < 14; j++)
 				{
-					gerstnerWave(posCloth[i][j]);
+					for (int w = 0; w <= numWaves; w++)
+					{
+						gerstnerWave(posCloth[i][j], allWaves[w]);
+					}
 				}
 			}
 			ClothMesh::updateClothMesh((float*)posCloth);
@@ -197,17 +213,8 @@ void PhysicsCleanup()
 	Sphere::cleanupSphere();
 }
 
-void gerstnerWave(glm::vec3 &pos)
+void gerstnerWave(glm::vec3 &pos, wave wave)
 {
-	glm::vec2 planePos = { pos.x,pos.z };
-	float height = pos.y;
-	planePos = planePos - waveVector*amplitude* sin(glm::dot(waveDirection,planePos) - frequency * resetTime);
-	height = amplitude * cos(glm::dot(waveDirection,planePos) - frequency * resetTime);
-
-	pos.x = planePos.x;
-	pos.y = height;
-	pos.z = planePos.y;
-
-	/*pos.x = pos.x + amplitude * sin(glm::dot(waveVector,pos.x) - frequency * resetTime);
-	pos.y = amplitude * cos(glm::dot(waveDirection,pos.y) - frequency* resetTime);*/
+	pos -= wave.waveDirection * (wave.lambda / (2 * glm::pi<float>()))* wave.amplitude * sin(glm::dot(wave.waveDirection,pos) - wave.frequency * resetTime + wave.phi);
+	pos.y += wave.amplitude * cos(glm::dot(wave.waveDirection,pos) - wave.frequency* resetTime + wave.phi);
 }
