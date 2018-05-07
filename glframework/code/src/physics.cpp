@@ -14,14 +14,12 @@
 //Sphere
 glm::vec3 spherePosition;
 float sphereRadius;
-const float mass = 1.0f;
+float mass = 1.0f; //kg
+
 
 //Cloth:
 glm::vec3 posCloth[18][14];
-
 //Waves:
-int numWaves;
-wave *allWaves;
 struct wave
 {
 	float amplitude;
@@ -30,19 +28,25 @@ struct wave
 	float lambda;
 	float phi;
 };
+const int numWaves = 1;
+wave allWaves[numWaves];
+//wave *allWaves;
+
+//Fluid:
+float density = 997.f;//  kg/m^3
 
 //Time:
 float resetTime;
 float deltaTime;
 
-bool renderSphere = false;
+bool renderSphere = true;
 bool renderCloth = true;
 #pragma endregion
 
 namespace Sphere
 {
-	void cleanupSphere();
-	void updateSphere(glm::vec3 pos, float radius = 1.f);
+	extern void cleanupSphere();
+	extern void updateSphere(glm::vec3 pos, float radius = 1.f);
 }
 namespace ClothMesh
 {
@@ -51,14 +55,13 @@ namespace ClothMesh
 }
 
 #pragma region Functions
-//various:
 void PhysicsInit();
 float randomFloat(float min, float max)
 {
 	return ((max - min) * ((float)rand() / RAND_MAX)) + min;
 }
 void gerstnerWave(glm::vec3 &pos, wave w);
-//physics:
+void sphereCollision(glm::vec3 &pos, float dt);
 
 #pragma endregion
 
@@ -69,8 +72,6 @@ float totalResetTime = 15.0f;
 glm::vec3 gravityAccel = { 0.0f,-9.81,0.0f };
 
 bool useCollisions = true;
-float elasticCoefficient = 0.2f;
-float frictionCoefficient = 0.1f;
 #pragma endregion
 
 bool show_test_window = false;
@@ -98,8 +99,8 @@ void GUI()
 		if (ImGui::TreeNode("Collisions"))
 		{
 			ImGui::Checkbox("Use Collisions", &useCollisions);
-			ImGui::DragFloat("Elastic Coefficient", &elasticCoefficient, 0.005f);
-			ImGui::DragFloat("Friction Coefficient", &frictionCoefficient, 0.005f);
+			ImGui::DragFloat("Mass", &mass, 0.005f);
+			ImGui::DragFloat("Water density", &density, 0.005f);
 
 			ImGui::TreePop();
 		}
@@ -115,7 +116,6 @@ void GUI()
 	}
 }
 
-
 void PhysicsInit()
 {
 	system("cls");
@@ -129,31 +129,36 @@ void PhysicsInit()
 	//Initialize Sphere at random position
 	if (renderSphere)
 	{
-		spherePosition = { -5.0f + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (10.0f))), static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (5.0f))), -5 + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (10.0f))) };
-		sphereRadius = 1.f + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (2.0f)));
+		spherePosition = { -5.0f + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (10.0f))), 5.f + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (5.0f))), -5 + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (10.0f))) };
+		std::cout << "spherePosition: " << spherePosition.x << " " << spherePosition.y << " " << spherePosition.z << std::endl << std::endl;
+		sphereRadius = 1.f;// +static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (2.0f)));
 		Sphere::updateSphere(spherePosition, sphereRadius);
 	}
 
 	//Initialize Cloth:
-	numWaves = rand() % 3;
-	allWaves = new wave[numWaves];
-	for (int i = 0; i <= numWaves; i++) //allWaves.size()
+	//int numWaves = rand() % 3;
+	//allWaves = new wave[numWaves];
+	//allWaves = new wave[2];
+	for (int i = 1; i <= numWaves; i++)
 	{
 		allWaves[i].amplitude = randomFloat(0.1f, 1.0f);
-		allWaves[i].amplitude = 0.4f;
-		std::cout << allWaves[i].amplitude << std::endl;
+		//allWaves[i].amplitude = 0.4f;
+		std::cout << "wave " << i << " amplitude: " << allWaves[i].amplitude << std::endl;
 
 		allWaves[i].frequency = randomFloat(0.1f, 1.0f);
-		allWaves[i].frequency = 0.8f;
-		std::cout << allWaves[i].frequency << std::endl;
+		//allWaves[i].frequency = 0.8f;
+		std::cout << "wave " << i << " frequency: " << allWaves[i].frequency << std::endl;
 
 		allWaves[i].waveDirection = glm::vec3{ 1,0,0 };//randomFloat(0.0f,1.0f), 0.f, randomFloat(0.0f,1.0f)};
+		std::cout << "wave " << i << " direction: (" << allWaves[i].waveDirection.x << ", " << allWaves[i].waveDirection.y << ", " << allWaves[i].waveDirection.z << ") " << std::endl;
+
 		allWaves[i].lambda = randomFloat(0.1f, 1.0f);
-		allWaves[i].lambda = 0.2f;
-		std::cout << allWaves[i].lambda << std::endl;
+		//allWaves[i].lambda = 0.2f;
+		std::cout << "wave "<<i<<" lambda: "<<allWaves[i].lambda << std::endl;
 
 		allWaves[i].phi = randomFloat(0.1f, 1.0f);
-		allWaves[i].phi = 0.2f;
+		//allWaves[i].phi = 0.2f;
+		std::cout << "wave " << i << " phi: " << allWaves[i].phi << std::endl;
 	}
 
 	//initial Cloth Position:
@@ -190,8 +195,9 @@ void PhysicsUpdate(float dt)
 			{
 				for (int j = 0; j < 14; j++)
 				{
-					for (int w = 0; w <= numWaves; w++)
+					for (int w = 1; w <= numWaves; w++)
 					{
+						posCloth[i][j].y = 2.f;
 						gerstnerWave(posCloth[i][j], allWaves[w]);
 					}
 				}
@@ -201,7 +207,17 @@ void PhysicsUpdate(float dt)
 			//Sphere Buoyancy:
 			if (useCollisions)
 			{
-				Sphere::updateSphere(spherePosition, 1.f);
+				//compute with temporal position:
+				glm::vec3 auxSpherePosition = spherePosition;
+
+				//gravity force:
+				auxSpherePosition += dt * gravityAccel;
+
+				//check collisions:
+				//sphereCollision(auxSpherePosition, dt);
+
+				spherePosition = auxSpherePosition;
+				//Sphere::updateSphere(spherePosition, sphereRadius);
 			}
 		}
 	}
@@ -216,5 +232,44 @@ void PhysicsCleanup()
 void gerstnerWave(glm::vec3 &pos, wave wave)
 {
 	pos -= wave.waveDirection * (wave.lambda / (2 * glm::pi<float>()))* wave.amplitude * sin(glm::dot(wave.waveDirection,pos) - wave.frequency * resetTime + wave.phi);
-	pos.y += wave.amplitude * cos(glm::dot(wave.waveDirection,pos) - wave.frequency* resetTime + wave.phi);
+	pos.y +=wave.amplitude * cos(glm::dot(wave.waveDirection,pos) - wave.frequency* resetTime + wave.phi);
+}
+
+void sphereCollision(glm::vec3 &pos, float dt)
+{
+	//Cerca binaria:
+	glm::vec3 auxLast;
+	glm::vec3 auxPos;
+	glm::vec3 cuttingPoint;
+
+	for (int i = 0; i < 18; i++)
+	{
+		for (int j = 0; j < 14; j++)
+		{
+			if (glm::distance(posCloth[i][j], pos) < sphereRadius)
+			{
+				//Cerca dicotòmica:
+				auxLast = spherePosition;
+				auxPos = pos;
+				cuttingPoint = (auxLast + auxPos) / 2.f;
+
+				while (glm::distance(cuttingPoint, pos) <= sphereRadius - 0.001f || glm::distance(cuttingPoint, pos) >= sphereRadius + 0.001f)
+				{
+					if (glm::distance(cuttingPoint, pos) > sphereRadius)
+					{
+						auxLast = cuttingPoint;
+					}
+					else
+					{
+						auxPos = cuttingPoint;
+					}
+					cuttingPoint = (auxLast + auxPos) / 2.f;
+				}
+
+				//buoyancy force:
+				cuttingPoint += dt*density * gravityAccel * sphereRadius;
+				pos = cuttingPoint;
+			}
+		}
+	}
 }
