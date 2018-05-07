@@ -131,7 +131,8 @@ void PhysicsInit()
 	{
 		spherePosition = { -5.0f + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (10.0f))), 5.f + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (5.0f))), -5 + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (10.0f))) };
 		std::cout << "spherePosition: " << spherePosition.x << " " << spherePosition.y << " " << spherePosition.z << std::endl << std::endl;
-		sphereRadius = 1.f;// +static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (2.0f)));
+		sphereRadius = 0.5f + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (1.5f)));
+		mass = 0.5f + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (5.0f)));
 		Sphere::updateSphere(spherePosition, sphereRadius);
 	}
 
@@ -142,22 +143,23 @@ void PhysicsInit()
 	for (int i = 1; i <= numWaves; i++)
 	{
 		allWaves[i].amplitude = randomFloat(0.1f, 1.0f);
-		//allWaves[i].amplitude = 0.4f;
+		allWaves[i].amplitude = 0.4f;
 		std::cout << "wave " << i << " amplitude: " << allWaves[i].amplitude << std::endl;
 
 		allWaves[i].frequency = randomFloat(0.1f, 1.0f);
-		//allWaves[i].frequency = 0.8f;
+		allWaves[i].frequency = 0.8f;
 		std::cout << "wave " << i << " frequency: " << allWaves[i].frequency << std::endl;
 
-		allWaves[i].waveDirection = glm::vec3{ 1,0,0 };//randomFloat(0.0f,1.0f), 0.f, randomFloat(0.0f,1.0f)};
+		allWaves[i].waveDirection = {randomFloat(0.0f,1.0f), 0.f, randomFloat(0.0f,1.0f)};
+		//allWaves[i].waveDirection = glm::vec3{ 1,0,0 };
 		std::cout << "wave " << i << " direction: (" << allWaves[i].waveDirection.x << ", " << allWaves[i].waveDirection.y << ", " << allWaves[i].waveDirection.z << ") " << std::endl;
 
 		allWaves[i].lambda = randomFloat(0.1f, 1.0f);
-		//allWaves[i].lambda = 0.2f;
+		allWaves[i].lambda = 0.2f;
 		std::cout << "wave "<<i<<" lambda: "<<allWaves[i].lambda << std::endl;
 
 		allWaves[i].phi = randomFloat(0.1f, 1.0f);
-		//allWaves[i].phi = 0.2f;
+		allWaves[i].phi = 0.2f;
 		std::cout << "wave " << i << " phi: " << allWaves[i].phi << std::endl;
 	}
 
@@ -187,21 +189,27 @@ void PhysicsUpdate(float dt)
 		}
 		else
 		{
-			resetTime += dt;
 			deltaTime = dt;
 			
-			//GERSTNER WAVES:
-			for (int i = 0; i < 18; i++)
+			//for a better approach:
+			int timeDivisor = 1;
+			for (int t = 0; t <= timeDivisor; t++)
 			{
-				for (int j = 0; j < 14; j++)
+				resetTime += dt/(float)timeDivisor;
+				//GERSTNER WAVES:
+				for (int i = 0; i < 18; i++)
 				{
-					for (int w = 1; w <= numWaves; w++)
+					for (int j = 0; j < 14; j++)
 					{
-						posCloth[i][j].y = 2.f;
-						gerstnerWave(posCloth[i][j], allWaves[w]);
+						for (int w = 1; w <= numWaves; w++)
+						{
+							posCloth[i][j].y = 2.f;
+							gerstnerWave(posCloth[i][j], allWaves[w]);
+						}
 					}
 				}
 			}
+			
 			ClothMesh::updateClothMesh((float*)posCloth);
 
 			//Sphere Buoyancy:
@@ -217,7 +225,7 @@ void PhysicsUpdate(float dt)
 				//sphereCollision(auxSpherePosition, dt);
 
 				spherePosition = auxSpherePosition;
-				//Sphere::updateSphere(spherePosition, sphereRadius);
+				Sphere::updateSphere(spherePosition, sphereRadius);
 			}
 		}
 	}
