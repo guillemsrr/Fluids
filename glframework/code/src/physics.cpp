@@ -43,11 +43,16 @@ bool renderCloth = true;
 namespace Sphere
 {
 	//Sphere
-	glm::vec3 spherePosition;
-	float sphereRadius;
+	glm::vec3 position;
+	glm::vec3 velocity;
+	float radius;
 	float mass = 1.0f; //kg
+	glm::vec3 forceSum;
+	glm::vec3 gravityForce;
 	extern void cleanupSphere();
 	extern void updateSphere(glm::vec3 pos, float radius = 1.f);
+	int iEq = 0;
+	int jEq= 0;
 }
 namespace ClothMesh
 {
@@ -62,7 +67,7 @@ float randomFloat(float min, float max)
 	return ((max - min) * ((float)rand() / RAND_MAX)) + min;
 }
 void gerstnerWave(glm::vec3 &pos, wave w, glm::vec3 x0);
-void sphereBuoyancy(glm::vec3 &pos, float dt);
+void sphereBuoyancy(glm::vec3 pos, float dt);
 
 #pragma endregion
 
@@ -97,14 +102,10 @@ void GUI()
 		ImGui::DragFloat("Reset Time", &totalResetTime, 0.05f);
 		ImGui::InputFloat3("Gravity Accel", (float*)&gravityAccel);
 
-		if (ImGui::TreeNode("Collisions"))
-		{
-			ImGui::Checkbox("Use Collisions", &useCollisions);
-			ImGui::DragFloat("Mass", &Sphere::mass, 0.005f);
-			ImGui::DragFloat("Water density", &density, 0.005f);
-
-			ImGui::TreePop();
-		}
+		ImGui::Checkbox("Use Collisions", &useCollisions);
+		ImGui::DragFloat("Mass", &Sphere::mass, 0.005f);
+		ImGui::DragFloat("Radius", &Sphere::radius, 0.005f);
+		ImGui::DragFloat("Water density", &density, 0.005f);
 	}
 	// .........................
 
@@ -139,15 +140,6 @@ void PhysicsInit()
 		std::cout << "wave " << i << " frequency: " << allWaves[i].frequency << std::endl;
 
 		allWaves[i].waveDirection = {randomFloat(0.0f,1.0f), 0.f, randomFloat(0.0f,1.0f)};
-		//if (i == 0)
-		//{
-		//	allWaves[i].waveDirection = glm::vec3{ 1,0,0 };
-		//}
-		//else
-		//{
-		//	allWaves[i].waveDirection = glm::vec3{ 0,0,1 };
-		//}
-		
 		std::cout << "wave " << i << " direction: (" << allWaves[i].waveDirection.x << ", " << allWaves[i].waveDirection.y << ", " << allWaves[i].waveDirection.z << ") " << std::endl;
 
 		allWaves[i].lambda = randomFloat(0.1f, 1.0f);
@@ -178,11 +170,30 @@ void PhysicsInit()
 	//Initialize Sphere at random position
 	if (renderSphere)
 	{
-		Sphere::spherePosition = { -5.0f + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (10.0f))), 5.f + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (5.0f))), -5 + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (10.0f))) };
-		std::cout << "spherePosition: " << Sphere::spherePosition.x << " " << Sphere::spherePosition.y << " " << Sphere::spherePosition.z << std::endl << std::endl;
-		Sphere::sphereRadius = 0.5f + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (1.5f)));
-		Sphere::mass = 0.5f + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (5.0f)));
-		Sphere::updateSphere(Sphere::spherePosition, Sphere::sphereRadius);
+		Sphere::position = { -4.0f + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (8.0f))), 5.f + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (5.0f))), -4.f + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (8.0f))) };
+		Sphere::velocity = glm::vec3{ 0.f,0.f,0.f };
+		Sphere::radius = 0.5f + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (1.2f)));
+		Sphere::mass = 0.5f + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (1.5f)));
+		Sphere::gravityForce = Sphere::mass * gravityAccel;
+		Sphere::forceSum = Sphere::gravityForce;
+		Sphere::updateSphere(Sphere::position, Sphere::radius);
+	}
+
+	//get the closest x,z point of Sphere - Cloth
+	glm::vec3 closestPoint = posCloth[0][0];
+
+	for (int i = 0; i < 18; i++)
+	{
+		for (int j = 0; j < 14; j++)
+		{
+			//checking x and z position within closest distance:
+			if (glm::distance(glm::vec2{ Sphere::position.x,Sphere::position.z }, glm::vec2{ posCloth[i][j].x,posCloth[i][j].z }) < glm::distance(glm::vec2{ Sphere::position.x,Sphere::position.z }, glm::vec2{ closestPoint.x, closestPoint.z }))
+			{
+				closestPoint = posCloth[i][j];
+				Sphere::iEq = i;
+				Sphere::jEq = j;
+			}
+		}
 	}
 }
 
@@ -211,24 +222,25 @@ void PhysicsUpdate(float dt)
 					}
 				}
 			}
-			
 			ClothMesh::updateClothMesh((float*)posCloth);
 
 			//Sphere Buoyancy:
 			if (useCollisions)
 			{
-				//compute with temporal position:
-				glm::vec3 auxSpherePosition = Sphere::spherePosition;
+				//Euler Solver:
+				//update Position:
+				Sphere::position += dt * Sphere::velocity;
+				//update velocity:
+				Sphere::velocity += dt * Sphere::forceSum / Sphere::mass;
 
-				//gravity force:
-				auxSpherePosition += dt * gravityAccel;// *Sphere::mass;
+				//reinitalize force:
+				Sphere::forceSum = Sphere::gravityForce;//this force always applies
 
-				//check collisions:
-				sphereBuoyancy(auxSpherePosition, dt);
+				//buoyancy Force:
+				sphereBuoyancy(Sphere::position, dt);
 
-				Sphere::spherePosition = auxSpherePosition;
-				Sphere::updateSphere(Sphere::spherePosition, Sphere::sphereRadius);
-				//std::cout << "spherePosition: " << Sphere::spherePosition.x << " " << Sphere::spherePosition.y << " " << Sphere::spherePosition.z << std::endl << std::endl;
+				Sphere::updateSphere(Sphere::position, Sphere::radius);
+				//std::cout << "spherePosition: " << Sphere::position.x << " " << Sphere::position.y << " " << Sphere::position.z << std::endl << std::endl;
 			}
 		}
 	}
@@ -246,27 +258,16 @@ void gerstnerWave(glm::vec3 &pos, wave wave, glm::vec3 x0)
 	pos.y += wave.amplitude * cos(glm::dot(wave.waveDirection, x0) - wave.frequency* resetTime + wave.phi);
 }
 
-void sphereBuoyancy(glm::vec3 &pos, float dt)
+void sphereBuoyancy(glm::vec3 pos, float dt)
 {
-	float tolerance = 0.5f;
 	float height;
-
-	for (int i = 0; i < 18; i++)
+	height = pos.y + Sphere::radius - posCloth[Sphere::iEq][Sphere::jEq].y;
+	if (height < 0.f)
 	{
-		for (int j = 0; j < 14; j++)
-		{
-			//checking x and z position within tolerance:
-			if (glm::distance(glm::vec2{ pos.x,pos.z }, glm::vec2{ posCloth[i][j].x,posCloth[i][j].z }) < tolerance )
-			{
-				height = pos.y + Sphere::sphereRadius - posCloth[i][j].y;
-				if (height < 0.f)
-				{
-					//buoyancy force:
-					float base = Sphere::sphereRadius*Sphere::sphereRadius*4.f;
-					pos += glm::abs(dt*density * gravityAccel * base*glm::abs(height));
-					std::cout << " collisioned pos: " << pos.x << " " << pos.y << " " << pos.z << std::endl << std::endl;
-				}
-			}
-		}
+		//buoyancy force:
+		float base = Sphere::radius*Sphere::radius*4.f;
+		Sphere::forceSum += glm::abs(density * gravityAccel * base*height);
+		std::cout << "buoyancy force: " << Sphere::forceSum.y << std::endl;
+		std::cout << "height: " << height << std::endl;
 	}
 }
