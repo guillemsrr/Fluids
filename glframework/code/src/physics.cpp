@@ -18,7 +18,6 @@ glm::vec3 initialPosCloth[18][14];
 //Waves:
 struct wave
 {
-
 	float amplitude;
 	float frequency;
 	glm::vec3 waveDirection;//k
@@ -31,6 +30,7 @@ wave allWaves[numWaves];
 
 //Fluid:
 float density = 1.f;// 997.f;//  kg/m^3
+float dragCoefficient = 1.f;
 
 //Time:
 float resetTime;
@@ -102,10 +102,11 @@ void GUI()
 		ImGui::DragFloat("Reset Time", &totalResetTime, 0.05f);
 		ImGui::InputFloat3("Gravity Accel", (float*)&gravityAccel);
 
-		ImGui::Checkbox("Use Collisions", &useCollisions);
-		ImGui::DragFloat("Mass", &Sphere::mass, 0.005f);
-		ImGui::DragFloat("Radius", &Sphere::radius, 0.005f);
+		ImGui::Checkbox("Use Buoyancy Force", &useCollisions);
+		ImGui::DragFloat("Sphere Mass", &Sphere::mass, 0.005f);
+		ImGui::DragFloat("Sphere Radius", &Sphere::radius, 0.005f);
 		ImGui::DragFloat("Water density", &density, 0.005f);
+		ImGui::DragFloat("Drag Coefficient", &dragCoefficient, 0.005f);
 	}
 	// .........................
 
@@ -261,13 +262,24 @@ void gerstnerWave(glm::vec3 &pos, wave wave, glm::vec3 x0)
 void sphereBuoyancy(glm::vec3 pos, float dt)
 {
 	float height;
-	height = pos.y + Sphere::radius - posCloth[Sphere::iEq][Sphere::jEq].y;
+	height = pos.y - Sphere::radius - posCloth[Sphere::iEq][Sphere::jEq].y;
 	if (height < 0.f)
 	{
+		float d = pos.y - posCloth[Sphere::iEq][Sphere::jEq].y;
+		float r = sqrt(Sphere::radius*Sphere::radius - d*d);//teorema de pitàgores
+		if (glm::abs(height) > Sphere::radius * 2)
+		{
+			height = Sphere::radius * 2;
+			r = Sphere::radius;
+		}
 		//buoyancy force:
 		float base = Sphere::radius*Sphere::radius*4.f;
 		Sphere::forceSum += glm::abs(density * gravityAccel * base*height);
 		std::cout << "buoyancy force: " << Sphere::forceSum.y << std::endl;
 		std::cout << "height: " << height << std::endl;
+
+		//drag force:
+		float CSArea = glm::pi<float>()*r*r;
+		Sphere::forceSum += -0.5f * density*dragCoefficient*CSArea * glm::length(Sphere::velocity)*Sphere::velocity;
 	}
 }
