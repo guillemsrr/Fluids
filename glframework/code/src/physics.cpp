@@ -23,14 +23,15 @@ struct wave
 	glm::vec3 waveDirection;//k
 	float lambda;
 	float phi;
+	float k;
 };
-const int numWaves = 2;
+const int numWaves = 3;
 wave allWaves[numWaves];
 //wave *allWaves;
 
 //Fluid:
 float density = 1.f;// 997.f;//  kg/m^3
-float dragCoefficient = 1.f;
+float dragCoefficient = 5.f;
 
 //Time:
 float resetTime;
@@ -133,22 +134,24 @@ void PhysicsInit()
 	for (int i = 0; i < numWaves; i++)
 	{
 		allWaves[i].amplitude = randomFloat(0.1f, 1.0f);
-		//allWaves[i].amplitude = 0.4f;
+		//allWaves[i].amplitude = 1.f;
 		std::cout << "wave " << i << " amplitude: " << allWaves[i].amplitude << std::endl;
 
-		allWaves[i].frequency = randomFloat(0.1f, 1.0f);
-		//allWaves[i].frequency = 0.8f;
+		allWaves[i].frequency = randomFloat(0.1f, 5.0f);
+		//allWaves[i].frequency = 3.f;
 		std::cout << "wave " << i << " frequency: " << allWaves[i].frequency << std::endl;
 
 		allWaves[i].waveDirection = {randomFloat(0.0f,1.0f), 0.f, randomFloat(0.0f,1.0f)};
 		std::cout << "wave " << i << " direction: (" << allWaves[i].waveDirection.x << ", " << allWaves[i].waveDirection.y << ", " << allWaves[i].waveDirection.z << ") " << std::endl;
 
 		allWaves[i].lambda = randomFloat(0.1f, 1.0f);
-		//allWaves[i].lambda = 0.2f;
+		//allWaves[i].lambda = 0.7f;
 		std::cout << "wave "<<i<<" lambda: "<<allWaves[i].lambda << std::endl;
 
-		allWaves[i].phi = randomFloat(0.1f, 1.0f);
-		//allWaves[i].phi = 0.2f;
+		allWaves[i].k = (allWaves[i].lambda / (2 * glm::pi<float>()));
+
+		allWaves[i].phi = randomFloat(0.1f, 2.0f);
+		//allWaves[i].phi = 0.5f;
 		std::cout << "wave " << i << " phi: " << allWaves[i].phi << std::endl;
 	}
 
@@ -173,8 +176,8 @@ void PhysicsInit()
 	{
 		Sphere::position = { -4.0f + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (8.0f))), 5.f + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (5.0f))), -4.f + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (8.0f))) };
 		Sphere::velocity = glm::vec3{ 0.f,0.f,0.f };
-		Sphere::radius = 0.5f + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (1.2f)));
-		Sphere::mass = 0.5f + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (1.5f)));
+		Sphere::radius = 0.5f + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (1.f)));
+		Sphere::mass = 0.5f + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (5.f)));
 		Sphere::gravityForce = Sphere::mass * gravityAccel;
 		Sphere::forceSum = Sphere::gravityForce;
 		Sphere::updateSphere(Sphere::position, Sphere::radius);
@@ -255,7 +258,7 @@ void PhysicsCleanup()
 
 void gerstnerWave(glm::vec3 &pos, wave wave, glm::vec3 x0)
 {
-	pos -= wave.waveDirection * (wave.lambda / (2 * glm::pi<float>()))* wave.amplitude * sin(glm::dot(wave.waveDirection, x0) - wave.frequency * resetTime + wave.phi);
+	pos -= wave.waveDirection * wave.k* wave.amplitude * sin(glm::dot(wave.waveDirection, x0) - wave.frequency * resetTime + wave.phi);
 	pos.y += wave.amplitude * cos(glm::dot(wave.waveDirection, x0) - wave.frequency* resetTime + wave.phi);
 }
 
@@ -275,11 +278,11 @@ void sphereBuoyancy(glm::vec3 pos, float dt)
 		//buoyancy force:
 		float base = Sphere::radius*Sphere::radius*4.f;
 		Sphere::forceSum += glm::abs(density * gravityAccel * base*height);
-		std::cout << "buoyancy force: " << Sphere::forceSum.y << std::endl;
-		std::cout << "height: " << height << std::endl;
+		//std::cout << "buoyancy force: " << Sphere::forceSum.y << std::endl;
+		//std::cout << "height: " << height << std::endl;
 
 		//drag force:
 		float CSArea = glm::pi<float>()*r*r;
-		Sphere::forceSum += -0.5f * density*dragCoefficient*CSArea * glm::length(Sphere::velocity)*Sphere::velocity;
+		Sphere::forceSum -= 0.5f * density*dragCoefficient*CSArea * glm::length(Sphere::velocity)*Sphere::velocity;
 	}
 }
