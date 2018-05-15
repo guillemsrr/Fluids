@@ -49,7 +49,6 @@ namespace Sphere
 	float radius;
 	float mass = 1.0f; //kg
 	glm::vec3 forceSum;
-	glm::vec3 gravityForce;
 	extern void cleanupSphere();
 	extern void updateSphere(glm::vec3 pos, float radius = 1.f);
 	int iEq = 0;
@@ -178,8 +177,7 @@ void PhysicsInit()
 		Sphere::velocity = glm::vec3{ 0.f,0.f,0.f };
 		Sphere::radius = 0.5f + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (1.f)));
 		Sphere::mass = 0.5f + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (5.f)));
-		Sphere::gravityForce = Sphere::mass * gravityAccel;
-		Sphere::forceSum = Sphere::gravityForce;
+		Sphere::forceSum = Sphere::mass * gravityAccel;
 		Sphere::updateSphere(Sphere::position, Sphere::radius);
 	}
 
@@ -238,7 +236,7 @@ void PhysicsUpdate(float dt)
 				Sphere::velocity += dt * Sphere::forceSum / Sphere::mass;
 
 				//reinitalize force:
-				Sphere::forceSum = Sphere::gravityForce;//this force always applies
+				Sphere::forceSum = Sphere::mass * gravityAccel;//this force always applies
 
 				//buoyancy Force:
 				sphereBuoyancy(Sphere::position, dt);
